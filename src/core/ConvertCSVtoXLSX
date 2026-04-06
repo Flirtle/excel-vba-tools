@@ -1,21 +1,28 @@
 Option Explicit
 
 Sub BatchCSVtoXLSX()
+    
+    Private folderPath  As String
+    Private fileName    As String
+    Private wb          As Workbook
+    Private fileList    As Collection
+    Private i           As Long
+    Private outPath     As String
+    Private converted   As Long
+    Private skipped     As Long
+    Private failed      As Long
+    Private failLog     As String
+    Private fd          As FileDialog
+    
 
-    Dim folderPath  As String
-    Dim fileName    As String
-    Dim wb          As Workbook
-    Dim fileList    As Collection
-    Dim i           As Long
-    Dim outPath     As String
-    Dim converted   As Long
-    Dim skipped     As Long
-    Dim failed      As Long
-    Dim failLog     As String
+    Set fd = Application.FileDialog(msoFileDialogFolderPicker)
+        If fd.Show <> -1 Then Exit Sub
+        folderPath = GetLocalPath(fd.SelectedItems(1))
+        
+'    CreateObject ("Scripting.FileSystemObject")
+    
 
-    ' CHANGE THIS PATH
-    folderPath = "C:\Users\Aholland\OneDrive - ARA Group\Desktop\Working files for Arc flash study\Files to convert"
-    If Right(folderPath, 1) <> "\" Then folderPath = folderPath & "\"
+    If Right(folderPath, 1) <> Application.PathSeparator Then folderPath = folderPath & Application.PathSeparator
 
     ' -- 1. Collect all CSV filenames BEFORE touching anything ------------------
     '       Avoids Dir() returning duplicates/skipping files when the folder
