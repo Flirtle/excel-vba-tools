@@ -1,4 +1,4 @@
-'WP1 sample workpack
+'testing
 Option Explicit
 Public myRibbon                         As IRibbonUI
 Public MyTag                            As String
@@ -155,7 +155,6 @@ Sub GetSelItemIndex(ByVal control As IRibbonControl, ByRef Index)
 End Sub
 
 Sub RefreshRibbon(Tag As String, Optional TabID As String, Optional BTNID As String)
-    MyTag = Tag
     If myRibbon Is Nothing Then
         'MsgBox ("Error, Save/Restart your workbook")
     Else
@@ -168,7 +167,7 @@ End Sub
 
 'Callback for SaveRegister onAction
 Sub SaveRegister(control As IRibbonControl)
-    ActiveWorkbook.Save
+    ThisWorkbook.Save
 End Sub
 
 'Callback for BTNSaveClose onAction
@@ -179,7 +178,7 @@ Sub SaveClose(control As IRibbonControl)
 
     answer = MsgBox("Are you sure you want to save and close?", vbQuestion + vbYesNo + vbDefaultButton2, "Save and close")
     If answer = vbYes Then
-        ActiveWorkbook.Save
+        ThisWorkbook.Save
         Application.DisplayAlerts = False
 
         wbCount = 0
