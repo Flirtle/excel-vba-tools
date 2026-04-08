@@ -1,0 +1,144 @@
+'''=============================================================================
+''' Module Name: ConvertCSVtoXLSX
+''' ---------------------------------------------
+''' https://github.com/Flirtle/excel-vba-tools/
+''' ---------------------------------------------
+''' The Unlicence
+'''=============================================================================
+
+'*******************************************************************************
+'' To Convert between .CSV file and .XLSX file types.
+'*******************************************************************************
+
+'*******************************************************************************
+'' This is just run. You select a folder, and it goes through only that folder, and saves all the .CSV present to .XLSX.
+'*******************************************************************************
+
+'*******************************************************************************
+'' TODO: Refactor, and utilise other modules such as LibFileTools.
+'*******************************************************************************
+
+Option Explicit
+
+Sub BatchCSVtoXLSX()
+    
+    Private folderPath  As String
+    Private fileName    As String
+    Private wb          As Workbook
+    Private fileList    As Collection
+    Private i           As Long
+    Private outPath     As String
+    Private converted   As Long
+    Private skipped     As Long
+    Private failed      As Long
+    Private failLog     As String
+    Private fd          As FileDialog
+    
+
+    Set fd = Application.FileDialog(msoFileDialogFolderPicker)
+        If fd.Show <> -1 Then Exit Sub
+        folderPath = GetLocalPath(fd.SelectedItems(1))
+        
+'    CreateObject ("Scripting.FileSystemObject")
+    
+
+    If Right(folderPath, 1) <> Application.PathSeparator Then folderPath = folderPath & Application.PathSeparator
+
+    ' -- 1. Collect all CSV filenames BEFORE touching anything ------------------
+    '       Avoids Dir() returning duplicates/skipping files when the folder
+    '       changes mid-loop (e.g. new .xlsx files being written into it).
+    Set fileList = New Collection
+    fileName = Dir(folderPath & "*.csv")
+    Do While fileName <> ""
+        fileList.Add fileName
+        fileName = Dir()
+    Loop
+
+    If fileList.Count = 0 Then
+        MsgBox "No CSV files found in:" & vbLf & folderPath, vbInformation
+        Exit Sub
+    End If
+
+    Application.ScreenUpdating = False
+    Application.DisplayAlerts = False
+
+    On Error GoTo CleanUp   ' -- 2. Guarantee we always restore Excel's state --
+
+    ' -- 3. Process each file ---------------------------------------------------
+    For i = 1 To fileList.Count
+
+        fileName = fileList(i)
+
+        ' Case-insensitive extension swap (.csv / .CSV / .Csv all handled)
+        outPath = folderPath & Left(fileName, Len(fileName) - 4) & ".xlsx"
+
+        ' -- 4. Skip rather than silently overwrite existing .xlsx files --------
+        If Dir(outPath) <> "" Then
+            skipped = skipped + 1
+            GoTo NextFile
+        End If
+
+        On Error Resume Next
+        Set wb = Workbooks.Open(folderPath & fileName)
+        If Err.Number <> 0 Then
+            failed = failed + 1
+            failLog = failLog & "  • " & fileName & " (open failed: " & Err.Description & ")" & vbLf
+            Err.Clear
+            On Error GoTo CleanUp
+            GoTo NextFile
+        End If
+        On Error GoTo CleanUp
+
+        On Error Resume Next
+        wb.SaveAs fileName:=outPath, FileFormat:=xlOpenXMLWorkbook
+        If Err.Number <> 0 Then
+            failed = failed + 1
+            failLog = failLog & "  • " & fileName & " (save failed: " & Err.Description & ")" & vbLf
+            Err.Clear
+            wb.Close SaveChanges:=False
+            On Error GoTo CleanUp
+            GoTo NextFile
+        End If
+        On Error GoTo CleanUp
+
+        wb.Close SaveChanges:=False
+        converted = converted + 1
+
+NextFile:
+    Next i
+
+    ' -- 5. Restore state and report --------------------------------------------
+    Application.DisplayAlerts = True
+    Application.ScreenUpdating = True
+
+    Dim summary As String
+    summary = "Conversion finished." & vbLf & vbLf & _
+              "  Converted : " & converted & vbLf & _
+              "  Skipped   : " & skipped & " (output already exists)" & vbLf & _
+              "  Failed    : " & failed
+
+    If failLog <> "" Then
+        summary = summary & vbLf & vbLf & "Failed files:" & vbLf & failLog
+    End If
+
+    MsgBox summary, IIf(failed > 0, vbExclamation, vbInformation), "Batch CSV ? XLSX"
+    Exit Sub
+
+' -- Safety net: always runs if an unexpected error escapes the loop ---------
+CleanUp:
+    Dim errMsg As String
+    errMsg = "Unexpected error " & Err.Number & ": " & Err.Description
+
+    If Not wb Is Nothing Then
+        On Error Resume Next
+        wb.Close SaveChanges:=False
+    End If
+
+    Application.DisplayAlerts = True
+    Application.ScreenUpdating = True
+
+    MsgBox "Macro stopped early." & vbLf & vbLf & errMsg & vbLf & vbLf & _
+           "Converted so far: " & converted, vbCritical, "Batch CSV ? XLSX"
+
+End Sub
+
